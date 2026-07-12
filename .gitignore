@@ -1,0 +1,22 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+venv/
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Dataset (do not upload)
+data/raw/
+data/processed/
+
+# Trained model checkpoints
+outputs/checkpoints/
+
+# Pytest cache
+.pytest_cache/
