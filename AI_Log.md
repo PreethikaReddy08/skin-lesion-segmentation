@@ -1,0 +1,14 @@
+# AI Log
+
+| Date and Time | Prompt | Tool | Response Synopsis | Change |
+|---------------|--------|------|-------------------|--------|
+| 07/11/2026 5:30 PM | Help me plan the overall workflow for a skin lesion boundary segmentation project using the ISIC 2018 dataset. | ChatGPT | Suggested a complete project structure, implementation order, and development milestones. | Created the project directory structure and organized source folders. |
+| 07/11/2026 7:00 PM | Help me verify that every dermoscopy image has a corresponding segmentation mask. | ChatGPT | Generated a dataset verification approach to compare image and mask filenames. | Verified 2,594 image-mask pairs with no missing files. |
+| 07/11/2026 8:45 PM | Help me build an image preprocessing pipeline for skin lesion segmentation. | ChatGPT | Recommended resizing, hair removal, CLAHE, Gaussian denoising, and binary mask preparation. | Implemented and tested the preprocessing pipeline. |
+| 07/11/2026 10:00 PM | My images are currently resized to 256×256. Should I increase the resolution? | ChatGPT | Explained the trade-offs between 256×256 and 512×512 based on hardware capability. | Updated preprocessing resolution to 512×512 and regenerated the processed dataset. |
+| 07/11/2026 10:55 PM | Help me implement a custom PyTorch Dataset and DataLoader. | ChatGPT | Explained how to load processed images, normalize inputs, convert masks to tensors, and test the DataLoader. | Implemented the dataset loader and verified tensor shapes and batch loading. |
+| 07/11/2026 11:30 PM | Help me implement a baseline U-Net model for binary lesion segmentation. | ChatGPT | Explained the encoder-decoder architecture, skip connections, and output layer for binary segmentation. | Implemented and tested the baseline U-Net model. |
+| 07/12/2026 12:20 AM | Help me build the model training pipeline. | ChatGPT | Suggested the training loop, validation loop, checkpoint saving, optimizer, Dice metric, IoU metric, and loss calculation. | Completed the training pipeline and verified execution. |
+| 07/12/2026 12:40 AM | What batch size and training configuration should I use on an Apple M4 MacBook Air? | ChatGPT | Recommended batch size 2, 5 baseline epochs, Adam optimizer, BCEWithLogitsLoss with Dice Loss, and Apple MPS acceleration. | Updated the training configuration accordingly. |
+| 07/12/2026 2:20 PM | Help me interpret the training results after completing model training. | ChatGPT | Explained the Dice score, IoU score, validation loss, and overall baseline model performance. | Reviewed the training curves and confirmed the baseline implementation was successful. |
+| 07/12/2026 3:05 PM | Help me write the README documentation for the project. | ChatGPT | Generated a structured README describing the dataset, preprocessing, model, training, results, and usage instructions. | Updated the project documentation with implementation details and training results. |
