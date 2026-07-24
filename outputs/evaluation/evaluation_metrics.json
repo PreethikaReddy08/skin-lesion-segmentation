@@ -1,0 +1,12 @@
+{
+    "checkpoint_epoch": 10,
+    "checkpoint_validation_loss": 0.6523044189294943,
+    "checkpoint_validation_dice": 0.7224989497031157,
+    "evaluation_validation_loss": 0.6523044189294943,
+    "evaluation_validation_dice": 0.7224989497031157,
+    "evaluation_validation_iou": 0.6296831007187184,
+    "validation_samples": 519,
+    "threshold": 0.5,
+    "image_size": 512,
+    "batch_size": 2
+}

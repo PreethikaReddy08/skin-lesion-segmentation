@@ -10,6 +10,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim import Adam
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
@@ -38,8 +39,13 @@ RANDOM_SEED = 42
 
 IMAGE_SIZE = 512
 BATCH_SIZE = 2
-NUM_EPOCHS = 5
+NUM_EPOCHS = 20
 LEARNING_RATE = 1e-4
+
+RESUME_TRAINING = True
+EARLY_STOPPING_PATIENCE = 5
+SCHEDULER_PATIENCE = 2
+SCHEDULER_FACTOR = 0.5
 
 TRAIN_RATIO = 0.80
 
@@ -475,6 +481,91 @@ def save_training_history(
         )
 
 
+def load_training_history() -> Dict[str, List[float]]:
+    """
+    Load the existing training history when resuming training.
+    """
+
+    if not HISTORY_PATH.exists():
+        return {
+            "train_loss": [],
+            "validation_loss": [],
+            "train_dice": [],
+            "validation_dice": [],
+            "train_iou": [],
+            "validation_iou": [],
+        }
+
+    with HISTORY_PATH.open(
+        "r",
+        encoding="utf-8",
+    ) as file:
+        history = json.load(file)
+
+    return history
+
+
+def load_checkpoint_for_resume(
+    model: nn.Module,
+    optimizer: torch.optim.Optimizer,
+    device: torch.device,
+) -> Tuple[int, float, int]:
+    """
+    Load the best checkpoint and continue from the next epoch.
+    """
+
+    if not RESUME_TRAINING:
+        return 1, float("inf"), 0
+
+    if not BEST_MODEL_PATH.exists():
+        raise FileNotFoundError(
+            f"Checkpoint not found: {BEST_MODEL_PATH}"
+        )
+
+    checkpoint = torch.load(
+        BEST_MODEL_PATH,
+        map_location=device,
+        weights_only=False,
+    )
+
+    model.load_state_dict(
+        checkpoint["model_state_dict"]
+    )
+
+    optimizer.load_state_dict(
+        checkpoint["optimizer_state_dict"]
+    )
+
+    completed_epoch = checkpoint["epoch"]
+    start_epoch = completed_epoch + 1
+
+    best_validation_loss = checkpoint[
+        "validation_loss"
+    ]
+
+    best_epoch = completed_epoch
+
+    print(
+        f"\nResuming from epoch {completed_epoch}"
+    )
+
+    print(
+        f"Starting epoch {start_epoch} of "
+        f"{NUM_EPOCHS}"
+    )
+
+    print(
+        f"Best validation loss so far: "
+        f"{best_validation_loss:.4f}"
+    )
+
+    return (
+        start_epoch,
+        best_validation_loss,
+        best_epoch,
+    )
+
+
 def plot_training_history(
     history: Dict[str, List[float]],
 ) -> None:
@@ -693,6 +784,7 @@ def save_prediction_examples(
         plt.close()
 
 
+
 def main() -> None:
     set_random_seed(
         RANDOM_SEED
@@ -723,10 +815,14 @@ def main() -> None:
         f"{IMAGE_SIZE} x {IMAGE_SIZE}"
     )
     print(f"Batch size: {BATCH_SIZE}")
-    print(f"Epochs: {NUM_EPOCHS}")
+    print(f"Target epochs: {NUM_EPOCHS}")
     print(
         f"Learning rate: "
         f"{LEARNING_RATE}"
+    )
+    print(
+        f"Resume training: "
+        f"{RESUME_TRAINING}"
     )
 
     train_loader, validation_loader = (
@@ -756,22 +852,59 @@ def main() -> None:
         f"{parameter_count:,}"
     )
 
-    history: Dict[str, List[float]] = {
-        "train_loss": [],
-        "validation_loss": [],
-        "train_dice": [],
-        "validation_dice": [],
-        "train_iou": [],
-        "validation_iou": [],
-    }
+    history = load_training_history()
 
-    best_validation_loss = float("inf")
-    best_epoch = 0
+    (
+        start_epoch,
+        best_validation_loss,
+        best_epoch,
+    ) = load_checkpoint_for_resume(
+        model=model,
+        optimizer=optimizer,
+        device=device,
+    )
+
+    completed_history_epochs = len(
+        history["train_loss"]
+    )
+
+    if (
+        completed_history_epochs
+        != start_epoch - 1
+    ):
+        raise ValueError(
+            "Checkpoint epoch and training history "
+            "length do not match. "
+            f"Checkpoint expects "
+            f"{start_epoch - 1} completed epochs, "
+            f"but history contains "
+            f"{completed_history_epochs}."
+        )
+
+    scheduler = ReduceLROnPlateau(
+        optimizer,
+        mode="min",
+        factor=SCHEDULER_FACTOR,
+        patience=SCHEDULER_PATIENCE,
+    )
+
+    epochs_without_improvement = 0
+    last_completed_epoch = start_epoch - 1
 
     training_start_time = time.time()
 
+    if start_epoch > NUM_EPOCHS:
+        print(
+            f"\nTraining has already completed "
+            f"{start_epoch - 1} epochs."
+        )
+        print(
+            f"NUM_EPOCHS is currently "
+            f"{NUM_EPOCHS}."
+        )
+
     for epoch in range(
-        1,
+        start_epoch,
         NUM_EPOCHS + 1,
     ):
         epoch_start_time = time.time()
@@ -798,18 +931,23 @@ def main() -> None:
         history["train_loss"].append(
             train_metrics["loss"]
         )
+
         history["validation_loss"].append(
             validation_metrics["loss"]
         )
+
         history["train_dice"].append(
             train_metrics["dice"]
         )
+
         history["validation_dice"].append(
             validation_metrics["dice"]
         )
+
         history["train_iou"].append(
             train_metrics["iou"]
         )
+
         history["validation_iou"].append(
             validation_metrics["iou"]
         )
@@ -821,33 +959,53 @@ def main() -> None:
         print(
             f"\nEpoch {epoch}/{NUM_EPOCHS} summary"
         )
+
         print(
             f"Train loss: "
             f"{train_metrics['loss']:.4f}"
         )
+
         print(
             f"Validation loss: "
             f"{validation_metrics['loss']:.4f}"
         )
+
         print(
             f"Train Dice: "
             f"{train_metrics['dice']:.4f}"
         )
+
         print(
             f"Validation Dice: "
             f"{validation_metrics['dice']:.4f}"
         )
+
         print(
             f"Train IoU: "
             f"{train_metrics['iou']:.4f}"
         )
+
         print(
             f"Validation IoU: "
             f"{validation_metrics['iou']:.4f}"
         )
+
         print(
             f"Epoch duration: "
             f"{epoch_duration / 60:.2f} minutes"
+        )
+
+        scheduler.step(
+            validation_metrics["loss"]
+        )
+
+        current_learning_rate = (
+            optimizer.param_groups[0]["lr"]
+        )
+
+        print(
+            f"Current learning rate: "
+            f"{current_learning_rate:.8f}"
         )
 
         if (
@@ -857,7 +1015,9 @@ def main() -> None:
             best_validation_loss = (
                 validation_metrics["loss"]
             )
+
             best_epoch = epoch
+            epochs_without_improvement = 0
 
             save_checkpoint(
                 model=model,
@@ -877,6 +1037,17 @@ def main() -> None:
                 f"epoch {epoch}."
             )
 
+        else:
+            epochs_without_improvement += 1
+
+            print(
+                f"No validation loss improvement "
+                f"for {epochs_without_improvement} "
+                f"epoch(s)."
+            )
+
+        last_completed_epoch = epoch
+
         save_training_history(
             history
         )
@@ -885,18 +1056,30 @@ def main() -> None:
             history
         )
 
-    save_checkpoint(
-        model=model,
-        optimizer=optimizer,
-        epoch=NUM_EPOCHS,
-        validation_loss=(
-            history["validation_loss"][-1]
-        ),
-        validation_dice=(
-            history["validation_dice"][-1]
-        ),
-        path=FINAL_MODEL_PATH,
-    )
+        if (
+            epochs_without_improvement
+            >= EARLY_STOPPING_PATIENCE
+        ):
+            print(
+                f"\nEarly stopping triggered after "
+                f"{EARLY_STOPPING_PATIENCE} epochs "
+                f"without validation loss improvement."
+            )
+            break
+
+    if history["validation_loss"]:
+        save_checkpoint(
+            model=model,
+            optimizer=optimizer,
+            epoch=last_completed_epoch,
+            validation_loss=(
+                history["validation_loss"][-1]
+            ),
+            validation_dice=(
+                history["validation_dice"][-1]
+            ),
+            path=FINAL_MODEL_PATH,
+        )
 
     best_checkpoint = torch.load(
         BEST_MODEL_PATH,
@@ -921,31 +1104,47 @@ def main() -> None:
 
     print("\nTraining complete")
     print("-----------------")
-    print(f"Best epoch: {best_epoch}")
+
+    print(
+        f"Last completed epoch: "
+        f"{last_completed_epoch}"
+    )
+
+    print(
+        f"Best epoch: "
+        f"{best_epoch}"
+    )
+
     print(
         f"Best validation loss: "
         f"{best_validation_loss:.4f}"
     )
+
     print(
         f"Best validation Dice: "
         f"{best_checkpoint['validation_dice']:.4f}"
     )
+
     print(
         f"Total training time: "
         f"{total_duration / 60:.2f} minutes"
     )
+
     print(
         f"Best model saved to: "
         f"{BEST_MODEL_PATH}"
     )
+
     print(
         f"Final model saved to: "
         f"{FINAL_MODEL_PATH}"
     )
+
     print(
         f"Plots saved to: "
         f"{PLOT_DIR}"
     )
+
     print(
         f"Predictions saved to: "
         f"{PREDICTION_DIR}"
