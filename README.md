@@ -2,245 +2,177 @@
 
 ## Project Overview
 
-This project implements a deep learning pipeline for automatic skin lesion boundary segmentation using dermoscopy images from the ISIC 2018 Challenge dataset. The objective is to accurately identify lesion boundaries by generating binary segmentation masks using a baseline U-Net architecture. The project includes dataset verification, image preprocessing, model training, evaluation, and visualization of segmentation results.
+This project implements a deep learning-based skin lesion segmentation system using a U-Net architecture. The objective is to accurately segment lesion boundaries from dermoscopy images by generating a binary mask for each input image.
+
+This project was completed as part of the Image Analysis and Computer Vision course.
 
 ---
 
-# Project Objective
+## Objective
 
-The goal of this project is to develop a baseline deep learning model capable of segmenting skin lesions from dermoscopic images.
-
-**Input**
-- Dermoscopy image
-
-**Output**
-- Binary lesion segmentation mask
-
-The generated segmentation masks can assist in computer-aided skin lesion analysis by accurately identifying lesion boundaries.
+- Perform automatic skin lesion boundary segmentation.
+- Train a baseline U-Net model on dermoscopy images.
+- Evaluate segmentation performance using Dice Coefficient and Intersection over Union (IoU).
 
 ---
 
-# Dataset
+## Dataset
 
-**Dataset:** ISIC 2018 Challenge – Task 1: Lesion Boundary Segmentation
+The dataset consists of paired dermoscopy images and corresponding binary lesion masks.
 
-Dataset Statistics
+Dataset Summary
 
-- Total dermoscopy images: **2,594**
-- Total ground truth masks: **2,594**
-- Missing images: **0**
-- Missing masks: **0**
-
-Each dermoscopy image has one corresponding expert-annotated binary segmentation mask.
+- Total image-mask pairs: 2594
+- Training samples: 2075
+- Validation samples: 519
+- Image size: 512 × 512
 
 ---
 
-# Project Structure
+## Project Structure
 
-```
+```text
 skin-lesion-segmentation/
+
+├── AI_Log.md
+├── README.md
+├── requirements.txt
+│
+├── data/
+│   ├── raw/
+│   └── processed/
 │
 ├── models/
-│   ├── __init__.py
 │   └── unet.py
 │
 ├── outputs/
-│   ├── preprocessing/
+│   ├── checkpoints/
+│   ├── evaluation/
 │   ├── plots/
 │   └── predictions/
 │
 ├── src/
 │   ├── check_dataset.py
 │   ├── dataset.py
-│   ├── evaluate.py
 │   ├── preprocess.py
-│   └── train.py
-│
-├── .gitignore
-├── AI_Log.md
-├── README.md
-└── requirements.txt
+│   ├── train.py
+│   └── evaluate.py
 ```
 
 ---
 
-# Image Preprocessing
+## Model
 
-The preprocessing pipeline improves image quality before training and prepares the dataset for semantic segmentation.
-
-The preprocessing steps include:
-
-- Resize all images to **512 × 512**
-- Hair removal using morphological black-hat operation and image inpainting
-- CLAHE (Contrast Limited Adaptive Histogram Equalization)
-- Gaussian denoising
-- Binary mask conversion
-- Save processed images and masks
-
-## Preprocessing Pipeline
-
-<p align="center">
-<img src="outputs/preprocessing/preprocessing_comparison.png" width="900">
-</p>
+- Architecture: U-Net
+- Input channels: 3
+- Output channels: 1
+- Loss Function: BCEWithLogitsLoss + Dice Loss
+- Optimizer: Adam
+- Learning Rate: 0.0001
+- Batch Size: 2
+- Epochs Trained: 15 (Early Stopping)
+- Learning Rate Scheduler: ReduceLROnPlateau
+- Early Stopping Patience: 5
 
 ---
 
-# Dataset Verification
+## Training Results
 
-The dataset verification script confirms correct image-mask pairing before training.
-
-Verified dataset:
-
-- Images: **2,594**
-- Masks: **2,594**
-- Valid image-mask pairs: **2,594**
-
-## Dataset Loader Verification
-
-The custom PyTorch Dataset correctly loads processed images and binary masks and converts them into tensors for training.
-
-<p align="center">
-<img src="outputs/preprocessing/dataset_loader_test.png" width="750">
-</p>
-
----
-
-# Model Architecture
-
-The baseline model is a standard **U-Net** implemented using PyTorch.
-
-Architecture includes:
-
-- Double convolution blocks
-- Four encoder levels
-- Bottleneck
-- Four decoder levels
-- Skip connections
-- Final 1×1 convolution layer for binary segmentation
-
-The model is trained using **BCEWithLogitsLoss + Dice Loss**, where the sigmoid activation is applied internally during loss computation.
-
----
-
-# Training Configuration
-
-| Parameter | Value |
-|-----------|-------|
-| Image Size | 512 × 512 |
-| Batch Size | 2 |
-| Epochs | 5 |
-| Optimizer | Adam |
-| Learning Rate | 0.0001 |
-| Loss Function | BCEWithLogitsLoss + Dice Loss |
-| Evaluation Metrics | Dice Score, IoU Score |
-| Device | Apple MPS (Apple Silicon GPU) |
-
-Dataset Split
-
-- Training Images: **2,075**
-- Validation Images: **519**
-
----
-
-# Preliminary Results
-
-The baseline U-Net was trained for **5 epochs**.
-
-## Best Results
+Best Model
 
 | Metric | Value |
-|---------|-------|
-| Best Epoch | 5 |
-| Validation Loss | **0.6564** |
-| Validation Dice | **0.7252** |
-| Validation IoU | **0.6233** |
-
-The model successfully learned meaningful lesion boundaries while maintaining stable validation performance throughout training.
+|--------|-------|
+| Best Epoch | 10 |
+| Validation Loss | 0.6523 |
+| Validation Dice | 0.7225 |
+| Validation IoU | 0.6297 |
 
 ---
 
-# Training Curves
+## Evaluation
 
-## Loss Curve
+The best checkpoint was evaluated on the validation dataset.
 
-<p align="center">
-<img src="outputs/plots/loss_curve.png" width="750">
-</p>
+Final Evaluation Metrics
 
-## Dice Score
+| Metric | Value |
+|--------|-------|
+| Validation Loss | 0.6523 |
+| Validation Dice | 0.7225 |
+| Validation IoU | 0.6297 |
 
-<p align="center">
-<img src="outputs/plots/dice_curve.png" width="750">
-</p>
+Prediction examples are available in:
 
-## IoU Score
-
-<p align="center">
-<img src="outputs/plots/iou_curve.png" width="750">
-</p>
+```
+outputs/evaluation/predictions/
+```
 
 ---
 
-# Sample Predictions
+## Features
 
-The following examples compare the original dermoscopy image, ground truth mask, and predicted lesion segmentation produced by the trained U-Net model.
-
-## Validation Prediction 1
-
-<p align="center">
-<img src="outputs/predictions/validation_prediction_1.png" width="900">
-</p>
-
-## Validation Prediction 2
-
-<p align="center">
-<img src="outputs/predictions/validation_prediction_2.png" width="900">
-</p>
+- Data preprocessing pipeline
+- Custom PyTorch dataset loader
+- U-Net implementation
+- Combined BCE + Dice loss
+- Model checkpointing
+- Resume training support
+- Learning rate scheduling
+- Early stopping
+- Validation metric tracking
+- Automatic prediction visualization
+- Evaluation pipeline
 
 ---
 
-# How to Run
+## How to Run
 
-### Verify the dataset
-
-```bash
-python3 src/check_dataset.py
-```
-
-### Preprocess the dataset
+### Install dependencies
 
 ```bash
-python3 src/preprocess.py
-```
-
-### Test the dataset loader
-
-```bash
-python3 src/dataset.py
-```
-
-### Test the U-Net model
-
-```bash
-python3 models/unet.py
+pip install -r requirements.txt
 ```
 
 ### Train the model
 
 ```bash
-python3 src/train.py
+python src/train.py
+```
+
+### Evaluate the best model
+
+```bash
+python src/evaluate.py
 ```
 
 ---
 
-# Future Work
+## Results
 
-Potential improvements for future work include:
+The trained U-Net model successfully segments skin lesion boundaries and provides reliable baseline segmentation performance.
 
-- Train for additional epochs
-- Apply advanced data augmentation techniques
-- Implement Attention U-Net
+Final validation performance:
+
+- Dice Coefficient: **0.7225**
+- IoU: **0.6297**
+
+---
+
+## Future Improvements
+
+Potential improvements include:
+
+- Attention U-Net
+- U-Net++
+- Data augmentation
+- Dice + Focal Loss
 - Hyperparameter tuning
-- Improve lesion boundary refinement
-- Evaluate additional segmentation metrics
-- Compare multiple segmentation architectures
+- Test-time augmentation
+
+---
+
+## Author
+
+Preethika Lethakula
+
+Image Analysis and Computer Vision
